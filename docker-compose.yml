@@ -1,0 +1,30 @@
+services:
+  yourfilms.api:
+    build:
+      context: .
+      dockerfile: YourFilms/Dockerfile
+    image: yourfilms.api
+    container_name: yourfilms.api
+    ports:
+      - "5000:8080"
+      - "5001:8081"
+
+  yourfilms.db:
+    image: postgres:17-alpine
+    container_name: yourfilms.db
+    environment:
+      POSTGRES_USER: yourfilms
+      POSTGRES_PASSWORD: yourfilmspassword
+      POSTGRES_DB: yourfilmsdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - yourfilms-db-data:/var/lib/postgresql/data
+  yourfilms.cache:
+    image: redis:latest
+    container_name: yourfilms.cache
+    ports:
+      - "6379:6379"
+
+volumes:
+    yourfilms-db-data:
