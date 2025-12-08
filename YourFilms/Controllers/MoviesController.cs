@@ -50,20 +50,7 @@ namespace YourFilms.Controllers
             return Ok(movies);
         }
 
-        [HttpGet("details/{type}/{id:int}")]
-        public async Task<ActionResult<MovieDTO>> GetDetails(string type, int id, CancellationToken cancellationToken)
-        {
-            try
-            {
-                var movie = await _tmdb.GetDetailsAsync(type, id, cancellationToken);
-                return movie is null ? NotFound($"TMDb returned no {type} with id {id}.") : Ok(movie);
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }
-
+        
         [HttpGet("discover/{type}")]
         public async Task<ActionResult<List<MovieDTO>>> Discover(string type, CancellationToken cancellationToken)
         {
@@ -71,6 +58,21 @@ namespace YourFilms.Controllers
             {
                 var movies = await _tmdb.DiscoverAsync(type, cancellationToken);
                 return movies.Count == 0 ? NotFound($"TMDb returned no {type} titles for discover.") : Ok(movies);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        // GET api/movies/details/{type}/{id} Returns detailed information about a movie or TV show //
+        [HttpGet("details/{type}/{id:int}")]
+        public async Task<ActionResult<MovieDTO>> GetDetails(string type, int id, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var movie = await _tmdb.GetDetailsAsync(type, id, cancellationToken);
+                return movie is null ? NotFound($"TMDb returned no {type} with id {id}.") : Ok(movie);
             }
             catch (ArgumentException ex)
             {

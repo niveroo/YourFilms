@@ -71,10 +71,10 @@ public class TmdbClient
         return GetAsync<TmdbTitleDetails>(url, cancellationToken);
     }
 
-    public Task<TmdbGenreResponse?> GetGenresAsync(string type, CancellationToken cancellationToken = default)
+    public Task<TmdbGenresResponse?> GetGenresAsync(string type, CancellationToken cancellationToken = default)
     {
         var url = $"genre/{type}/list?language=en-US";
-        return GetAsync<TmdbGenreResponse>(url, cancellationToken);
+        return GetAsync<TmdbGenresResponse>(url, cancellationToken);
     }
 
     private Task<T?> GetAsync<T>(string url, CancellationToken cancellationToken)
