@@ -8,7 +8,7 @@ public class TmdbMovieItem
     public string? BackdropPath { get; set; }
 
     [JsonPropertyName("genre_ids")]
-    public List<int>? GenreIds { get; set; }
+    public List<int> GenreIds { get; set; }
 
     [JsonPropertyName("id")]
     public int Id { get; set; }

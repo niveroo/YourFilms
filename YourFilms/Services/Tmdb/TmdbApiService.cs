@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using YourFilms.DTOs;
+using YourFilms.Services.Tmdb;
 using YourFilms.Services.Tmdb.Models.Movie;
 using YourFilms.Services.Tmdb.Models.Tv;
 using static YourFilms.Services.Tmdb.DTOConverter;
@@ -24,7 +25,10 @@ public class TmdbApiService
     }
 
     // Search movies and TV shows by query
-    public async Task<PagedResult<SearchDTO>> SearchAllAsync(string query, int page, CancellationToken cancellationToken = default)
+    public async Task<PagedResult<SearchDTO>> SearchAllAsync(
+    string query,
+    int page,
+    CancellationToken cancellationToken = default)
     {
         var response = await _client.SearchAllAsync(query, page, cancellationToken);
 
@@ -39,13 +43,14 @@ public class TmdbApiService
             };
         }
 
-        // Map TMDb items → SearchDTO and filter only movie or tv media types
+        // Fetch both genre sets
+        var movieGenres = await GetMoviesGenresAsync("movie", cancellationToken);
+        var tvGenres = await GetMoviesGenresAsync("tv", cancellationToken);
+
         var results = response.Results
-            .Select(ToSearchDto)
-            .Where(dto => dto != null)
-            .Where(dto => string.Equals(dto.MediaType, "movie", StringComparison.OrdinalIgnoreCase)
-                       || string.Equals(dto.MediaType, "tv", StringComparison.OrdinalIgnoreCase))
-            .ToList()!;
+            .Where(r => r.MediaType == "movie" || r.MediaType == "tv")
+            .Select(r => DTOConverter.ToSearchDto(r, movieGenres, tvGenres))
+            .ToList();
 
         return new PagedResult<SearchDTO>
         {
@@ -56,27 +61,28 @@ public class TmdbApiService
         };
     }
 
-   /* // Previously: combined GetDetailsAsync. Keep it for compatibility if needed.
-    public async Task<MovieDetailsDTO?> GetDetailsAsync(string type, int id, CancellationToken cancellationToken = default)
-    {
-        switch (type.ToLower())
-        {
-            case "movie":
-                {
-                    var movie = await _client.GetMovieDetailsAsync(id, cancellationToken);
-                    return movie is null ? null : ToDetailsDto(movie) as MovieDetailsDTO;
-                }
 
-            case "tv":
-                {
-                    var tv = await _client.GetTvDetailsAsync(id, cancellationToken);
-                    return tv is null ? null : ToDetailsDto(tv) as MovieDetailsDTO;
-                }
+    /* // Previously: combined GetDetailsAsync. Keep it for compatibility if needed.
+     public async Task<MovieDetailsDTO?> GetDetailsAsync(string type, int id, CancellationToken cancellationToken = default)
+     {
+         switch (type.ToLower())
+         {
+             case "movie":
+                 {
+                     var movie = await _client.GetMovieDetailsAsync(id, cancellationToken);
+                     return movie is null ? null : ToDetailsDto(movie) as MovieDetailsDTO;
+                 }
 
-            default:
-                throw new ArgumentException("Type must be 'movie' or 'tv'.", nameof(type));
-        }
-    }*/
+             case "tv":
+                 {
+                     var tv = await _client.GetTvDetailsAsync(id, cancellationToken);
+                     return tv is null ? null : ToDetailsDto(tv) as MovieDetailsDTO;
+                 }
+
+             default:
+                 throw new ArgumentException("Type must be 'movie' or 'tv'.", nameof(type));
+         }
+     }*/
 
     // Return TMDb movie DTO model
     public async Task<MovieDetailsDTO?> GetMovieDetailsAsync(int id, CancellationToken cancellationToken = default)

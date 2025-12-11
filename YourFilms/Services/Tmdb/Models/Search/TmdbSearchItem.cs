@@ -22,7 +22,7 @@ namespace YourFilms.Services.Tmdb.Models.Search
         public string? Overview { get; set; }
 
         [JsonPropertyName("media_type")]
-        public string? MediaType { get; set; }
+        public string MediaType { get; set; }
 
         [JsonPropertyName("popularity")]
         public double? Popularity { get; set; }

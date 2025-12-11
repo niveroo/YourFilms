@@ -11,45 +11,59 @@ namespace YourFilms.Services.Tmdb
     public class DTOConverter
     {
         // Map TmdbMovieItem to SearchDTO
-        public static SearchDTO ToSearchDto(TmdbMovieItem tmdb)
+        public static SearchDTO ToSearchDto(TmdbSearchItem item, List<GenreDTO> movieGenres, List<GenreDTO> tvGenres)
         {
-            var genres = tmdb.GenreIds?
-                .Where(id => GenreMap.ContainsKey(id))
-                .Select(id => new GenreDTO
-                {
-                    Id = id,
-                    Name = GenreMap[id]
-                })
-                .ToList() ?? new List<GenreDTO>();
+            List<GenreDTO> resolvedGenres = new();
+
+            if (item.GenreIds != null)
+            {
+                resolvedGenres =
+                    (item.MediaType == "movie" ? movieGenres : tvGenres)
+                    .Where(g => item.GenreIds.Contains(g.Id))
+                    .ToList();
+            }
+
+            string title = "";
+            string original = "";
+            string release = "";
+
+            if (item.MediaType == "movie")
+            {
+                title = item.Title ?? "";
+                original = item.OriginalTitle ?? "";
+                release = item.ReleaseDate ?? "";
+            }
+            else if (item.MediaType == "tv")
+            {
+                title = item.Name ?? "";
+                original = item.OriginalName ?? "";
+                release = item.FirstAirDate ?? "";
+            }
 
             return new SearchDTO
             {
-                Id = tmdb.Id,
-                MediaType = "movie",
-                Title = tmdb.Title ?? tmdb.OriginalTitle ?? string.Empty,
-                OriginalTitle = tmdb.OriginalTitle ?? tmdb.Title ?? string.Empty,
-                OriginalLanguage = tmdb.OriginalLanguage,
-                Overview = tmdb.Overview,
-                Popularity = tmdb.Popularity,
-                PosterPath = tmdb.PosterPath,
-                ReleaseDate = tmdb.ReleaseDate,
-                VoteAverage = tmdb.VoteAverage,
-                VoteCount = tmdb.VoteCount,
-                Genres = genres
+                Id = item.Id,
+                MediaType = item.MediaType,
+                Title = title,
+                OriginalTitle = original,
+                OriginalLanguage = item.OriginalLanguage,
+                Overview = item.Overview,
+                Popularity = item.Popularity,
+                PosterPath = item.PosterPath,
+                ReleaseDate = release,
+                VoteAverage = item.VoteAverage,
+                VoteCount = item.VoteCount,
+                Genres = resolvedGenres
             };
         }
 
+
         // Map TmdbTvItem to SearchDTO
-        public static SearchDTO ToSearchDto(TmdbTvItem tmdb)
+        public static SearchDTO ToSearchDto(TmdbTvItem tmdb, List<GenreDTO> tvGenres)
         {
-            var genres = tmdb.GenreIds?
-                .Where(id => GenreMap.ContainsKey(id))
-                .Select(id => new GenreDTO
-                {
-                    Id = id,
-                    Name = GenreMap[id]
-                })
-                .ToList() ?? new List<GenreDTO>();
+            var genres = tvGenres
+                .Where(g => tmdb.GenreIds.Contains(g.Id))
+                .ToList();
 
             return new SearchDTO
             {
@@ -69,20 +83,29 @@ namespace YourFilms.Services.Tmdb
         }
 
         // Map generic TmdbSearchItem to SearchDTO
-        public static SearchDTO ToSearchDto(TmdbSearchItem tmdb)
+        public static SearchDTO ToSearchDto(TmdbSearchItem tmdb, List<GenreDTO> movieGenres)
         {
-            var genres = tmdb.GenreIds?
-                .Where(id => GenreMap.ContainsKey(id))
-                .Select(id => new GenreDTO
-                {
-                    Id = id,
-                    Name = GenreMap[id]
-                })
-                .ToList() ?? new List<GenreDTO>();
+            var genres = movieGenres
+                .Where(g => tmdb.GenreIds.Contains(g.Id))
+                .ToList();
 
-            var title = tmdb.Title ?? tmdb.Name ?? tmdb.OriginalTitle ?? tmdb.OriginalName ?? string.Empty;
-            var original = tmdb.OriginalTitle ?? tmdb.OriginalName ?? string.Empty;
-            var release = tmdb.ReleaseDate ?? tmdb.FirstAirDate;
+            var title = string.Empty;
+            var original = string.Empty;
+            var release = string.Empty;
+
+            switch (tmdb.MediaType)
+            {
+                case "movie":
+                        title = tmdb.Title;
+                        original = tmdb.OriginalTitle ?? string.Empty;
+                        release = tmdb.ReleaseDate;
+                        break;
+                case "tv":
+                        title = tmdb.Name;
+                        original = tmdb.OriginalName ?? string.Empty;
+                        release = tmdb.FirstAirDate;
+                        break;
+            }
 
             return new SearchDTO
             {
@@ -174,30 +197,5 @@ namespace YourFilms.Services.Tmdb
                 Status = details.Status
             };
         }
-
-
-        // Tempera
-        private static readonly Dictionary<int, string> GenreMap = new()
-    {
-        { 28, "Action" },
-        { 12, "Adventure" },
-        { 16, "Animation" },
-        { 35, "Comedy" },
-        { 80, "Crime" },
-        { 99, "Documentary" },
-        { 18, "Drama" },
-        { 10751, "Family" },
-        { 14, "Fantasy" },
-        { 36, "History" },
-        { 27, "Horror" },
-        { 10402, "Music" },
-        { 9648, "Mystery" },
-        { 10749, "Romance" },
-        { 878, "Science Fiction" },
-        { 10770, "TV Movie" },
-        { 53, "Thriller" },
-        { 10752, "War" },
-        { 37, "Western" }
-    };
     }
 }
