@@ -15,30 +15,23 @@ namespace YourFilms.Controllers
             _tmdb = tmdb;
         }
 
+        // GET api/movies/search Search all by name
         [HttpGet("search")]
-        public async Task<ActionResult<List<SearchMovieDTO>>> Search([FromQuery] string query, int page, CancellationToken cancellationToken)
+        public async Task<ActionResult<PagedResult<SearchDTO>>> Search([FromQuery] string query, int page, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(query))
-            {
-                return BadRequest("Query cannot be empty or whitespace.");
-            }
+                return BadRequest("Query cannot be empty.");
 
-            var movies = await _tmdb.SearchMoviesAsync(query, page, cancellationToken);
+            var result = await _tmdb.SearchAllAsync(query, page, cancellationToken);
 
-            if (movies.Count == 0)
-            {
+            if (result.Results.Count == 0)
                 return NotFound("No results found.");
-            }
 
-            return Ok(movies);
+            return Ok(result);
         }
 
-        /// <summary>
-        /// Get popular movies and TV shows for homepage
-        /// GET api/movies/popular
-        /// </summary>
-        [HttpGet("popular")]
-        public async Task<ActionResult<List<SearchMovieDTO>>> GetPopular(string type, CancellationToken cancellationToken)
+        /*[HttpGet("popular")]
+        public async Task<ActionResult<List<SearchDTO>>> GetPopular(string type, CancellationToken cancellationToken)
         {
             var movies = await _tmdb.GetPopularAsync(type, cancellationToken);
 
@@ -50,9 +43,9 @@ namespace YourFilms.Controllers
             return Ok(movies);
         }
 
-        
+
         [HttpGet("discover/{type}")]
-        public async Task<ActionResult<List<MovieDTO>>> Discover(string type, CancellationToken cancellationToken)
+        public async Task<ActionResult<List<DetailsDTO>>> Discover(string type, CancellationToken cancellationToken)
         {
             try
             {
@@ -63,16 +56,31 @@ namespace YourFilms.Controllers
             {
                 return BadRequest(ex.Message);
             }
-        }
+        }*/
 
         // GET api/movies/details/{type}/{id} Returns detailed information about a movie or TV show //
-        [HttpGet("details/{type}/{id:int}")]
-        public async Task<ActionResult<MovieDTO>> GetDetails(string type, int id, CancellationToken cancellationToken)
+        [HttpGet("details/movie/{id:int}")]
+        public async Task<ActionResult<MovieDetailsDTO>> GetMovieDetails(int id, CancellationToken cancellationToken)
         {
             try
             {
-                var movie = await _tmdb.GetDetailsAsync(type, id, cancellationToken);
-                return movie is null ? NotFound($"TMDb returned no {type} with id {id}.") : Ok(movie);
+                var title = await _tmdb.GetMovieDetailsAsync(id, cancellationToken);
+                return title is null ? NotFound($"TMDb returned no movie with id {id}.") : Ok(title);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        // GET api/movies/details/{type}/{id} Returns detailed information about a movie or TV show //
+        [HttpGet("details/tv/{id:int}")]
+        public async Task<ActionResult<TvDetailsDTO>> GetTvDetails(int id, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var title = await _tmdb.GetTvDetailsAsync(id, cancellationToken);
+                return title is null ? NotFound($"TMDb returned no tv with id {id}.") : Ok(title);
             }
             catch (ArgumentException ex)
             {

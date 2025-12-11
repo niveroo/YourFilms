@@ -3,6 +3,9 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using YourFilms.Services.Tmdb.Models;
+using YourFilms.Services.Tmdb.Models.Movie;
+using YourFilms.Services.Tmdb.Models.Search;
+using YourFilms.Services.Tmdb.Models.Tv;
 
 namespace YourFilms.Services;
 
@@ -31,18 +34,13 @@ public class TmdbClient
         _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
     }
 
-    public Task<TmdbSearchResponse?> SearchAllAsync(string query, int page, CancellationToken cancellationToken = default)
+    public Task<TmdbPagedResponse<TmdbSearchItem>> SearchAllAsync(string query, int page, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(query))
-        {
-            throw new ArgumentException("Query cannot be empty.", nameof(query));
-        }
-
         var url = $"search/multi?query={Uri.EscapeDataString(query)}&language=en-US&page={page}";
-        return GetAsync<TmdbSearchResponse>(url, cancellationToken);
+        return GetAsync<TmdbPagedResponse<TmdbSearchItem>>(url, cancellationToken);
     }
 
-    public Task<TmdbSearchResponse?> DiscoverAsync(string type, int? genreId = null, CancellationToken cancellationToken = default)
+    /*public Task<TmdbSearchResponse?> DiscoverAsync(string type, int? genreId = null, CancellationToken cancellationToken = default)
     {
         var url = $"discover/{type}?language=en-US&sort_by=popularity.desc";
         if (genreId.HasValue)
@@ -57,25 +55,29 @@ public class TmdbClient
     {
         var url = $"{type}/popular?language=en-US";
         return GetAsync<TmdbSearchResponse>(url, cancellationToken);
-    }
+    }*/
 
-    public Task<TmdbTitleDetails?> GetMovieDetailsAsync(int id, CancellationToken cancellationToken = default)
+    // Get title details by id
+    public Task<TmdbMovieDetails?> GetMovieDetailsAsync(int id, CancellationToken cancellationToken = default)
     {
         var url = $"movie/{id}?language=en-US";
-        return GetAsync<TmdbTitleDetails>(url, cancellationToken);
+        return GetAsync<TmdbMovieDetails>(url, cancellationToken);
     }
 
-    public Task<TmdbTitleDetails?> GetTvDetailsAsync(int id, CancellationToken cancellationToken = default)
+    public Task<TmdbTvDetails?> GetTvDetailsAsync(int id, CancellationToken cancellationToken = default)
     {
         var url = $"tv/{id}?language=en-US";
-        return GetAsync<TmdbTitleDetails>(url, cancellationToken);
+        return GetAsync<TmdbTvDetails>(url, cancellationToken);
     }
+    //
 
+    //  Get genres list
     public Task<TmdbGenresResponse?> GetGenresAsync(string type, CancellationToken cancellationToken = default)
     {
         var url = $"genre/{type}/list?language=en-US";
         return GetAsync<TmdbGenresResponse>(url, cancellationToken);
     }
+    //
 
     private Task<T?> GetAsync<T>(string url, CancellationToken cancellationToken)
         => _http.GetFromJsonAsync<T>(url, JsonOptions, cancellationToken);
