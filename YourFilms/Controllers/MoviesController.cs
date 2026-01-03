@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using YourFilms.DTOs;
 using YourFilms.Services;
+using YourFilms.Services.Tmdb;
 
 namespace YourFilms.Controllers
 {
@@ -30,33 +31,31 @@ namespace YourFilms.Controllers
             return Ok(result);
         }
 
-        /*[HttpGet("popular")]
-        public async Task<ActionResult<List<SearchDTO>>> GetPopular(string type, CancellationToken cancellationToken)
-        {
-            var movies = await _tmdb.GetPopularAsync(type, cancellationToken);
-
-            if (movies.Count == 0)
-            {
-                return NotFound("No popular content found.");
-            }
-
-            return Ok(movies);
-        }
-
-
+        // GET api/movies/discover/{type} Search with filters
         [HttpGet("discover/{type}")]
-        public async Task<ActionResult<List<DetailsDTO>>> Discover(string type, CancellationToken cancellationToken)
+        public async Task<ActionResult<PagedResult<SearchDTO>>> Discover(
+            string type,
+            [FromQuery] TmdbSortOption sort = TmdbSortOption.PopularityDesc,
+            [FromQuery] int page = 1,
+            [FromQuery] int? genreId = null,
+            [FromQuery] int? year = null,
+            CancellationToken cancellationToken = default)
         {
-            try
+            if (page < 1) page = 1;
+
+            if (type != "movie" && type != "tv")
             {
-                var movies = await _tmdb.DiscoverAsync(type, cancellationToken);
-                return movies.Count == 0 ? NotFound($"TMDb returned no {type} titles for discover.") : Ok(movies);
+                return BadRequest("Type must be 'movie' or 'tv'.");
             }
-            catch (ArgumentException ex)
+
+            var result = await _tmdb.GetDiscoverAsync(type, sort, page, genreId, year, cancellationToken);
+            if (result.Results.Count == 0)
             {
-                return BadRequest(ex.Message);
+                return NotFound("No results found.");
             }
-        }*/
+
+            return Ok(result);
+        }
 
         // GET api/movies/details/{type}/{id} Returns detailed information about a movie or TV show //
         [HttpGet("details/movie/{id:int}")]

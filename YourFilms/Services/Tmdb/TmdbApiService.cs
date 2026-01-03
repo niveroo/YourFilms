@@ -61,28 +61,43 @@ public class TmdbApiService
         };
     }
 
+    // Discover movies and TV shows
+    public async Task<PagedResult<SearchDTO>> GetDiscoverAsync(
+        string type,
+        TmdbSortOption sortOption,
+        int page = 1,
+        int? genreId = null,
+        int? year = null,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await _client.GetDiscoverAsync(type, sortOption, page, genreId, year, cancellationToken);
 
-    /* // Previously: combined GetDetailsAsync. Keep it for compatibility if needed.
-     public async Task<MovieDetailsDTO?> GetDetailsAsync(string type, int id, CancellationToken cancellationToken = default)
-     {
-         switch (type.ToLower())
-         {
-             case "movie":
-                 {
-                     var movie = await _client.GetMovieDetailsAsync(id, cancellationToken);
-                     return movie is null ? null : ToDetailsDto(movie) as MovieDetailsDTO;
-                 }
+        if (response?.Results == null)
+        {
+            return new PagedResult<SearchDTO>
+            {
+                Page = 0,
+                TotalPages = 0,
+                TotalResults = 0,
+                Results = new List<SearchDTO>()
+            };
+        }
 
-             case "tv":
-                 {
-                     var tv = await _client.GetTvDetailsAsync(id, cancellationToken);
-                     return tv is null ? null : ToDetailsDto(tv) as MovieDetailsDTO;
-                 }
+        var movieGenres = await GetMoviesGenresAsync("movie", cancellationToken);
+        var tvGenres = await GetMoviesGenresAsync("tv", cancellationToken);
 
-             default:
-                 throw new ArgumentException("Type must be 'movie' or 'tv'.", nameof(type));
-         }
-     }*/
+        var results = response.Results
+            .Select(r => DTOConverter.ToSearchDto(r, movieGenres, tvGenres))
+            .ToList();
+
+        return new PagedResult<SearchDTO>
+        {
+            Page = response.Page,
+            TotalPages = response.TotalPages,
+            TotalResults = response.TotalResults,
+            Results = results
+        };
+    }
 
     // Return TMDb movie DTO model
     public async Task<MovieDetailsDTO?> GetMovieDetailsAsync(int id, CancellationToken cancellationToken = default)
@@ -99,30 +114,6 @@ public class TmdbApiService
 
         return ToDetailsDto(tv);
     }
-
-    //public async Task<List<SearchDTO>> DiscoverAsync(string type, CancellationToken cancellationToken = default)
-    //{
-    //    if (!TryGetTypeContext(type, out var context))
-    //    {
-    //        throw new ArgumentException("Type must be 'movie' or 'tv'.", nameof(type));
-    //    }
-
-    //    var ctx = context!;
-    //    var response = await _client.DiscoverAsync(ctx.ApiType, ctx.GenreFilterId, cancellationToken);
-    //    return MapCollection(response, ctx.MediaType, ctx.GenreFilterId);
-    //}
-
-    //public async Task<List<SearchDTO>> GetPopularAsync(string type, CancellationToken cancellationToken = default)
-    //{
-    //    if (!TryGetTypeContext(type, out var context))
-    //    {
-    //        throw new ArgumentException("Type must be 'movie' or 'tv'.", nameof(type));
-    //    }
-
-    //    var ctx = context!;
-    //    var response = await _client.GetPopularAsync(ctx.ApiType, cancellationToken);
-    //    return MapCollection(response, ctx.MediaType, ctx.GenreFilterId);
-    //}
 
     public async Task<List<GenreDTO>> GetMoviesGenresAsync(string type, CancellationToken cancellationToken = default)
     {
@@ -165,22 +156,4 @@ public class TmdbApiService
 
         return mappedGenres;
     }
-
-    //private static List<SearchDTO> MapCollection(TmdbSearchResponse? response, string mediaTypeOverride, int? requiredGenreId = null)
-    //{
-    //    if (response?.Results == null)
-    //    {
-    //        return new List<SearchDTO>();
-    //    }
-
-    //    var filtered = requiredGenreId.HasValue
-    //        ? response.Results.Where(r => r.GenreIds?.Contains(requiredGenreId.Value) == true)
-    //        : response.Results.AsEnumerable();
-
-    //    return filtered
-    //        .Select(result => ToSearchMovieDto(result, mediaTypeOverride))
-    //        .Where(dto => dto is not null)
-    //        .Select(dto => dto!)
-    //        .ToList();
-    //}
 }
