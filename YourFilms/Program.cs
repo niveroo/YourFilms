@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -12,50 +11,48 @@ using YourFilms.Services.Authorization;
 var builder = WebApplication.CreateBuilder(args);
 var corsPolicy = "AllowFrontend";
 
-
+// Controllers
 builder.Services.AddControllers();
 
+// HttpClient and services
 builder.Services.AddHttpClient<TmdbClient>();
 builder.Services.AddScoped<TmdbApiService>();
 builder.Services.AddSingleton<TokenProvider>();
 builder.Services.AddScoped<LoginUser>();
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+// Authentication + JWT
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
     {
-        options.MapInboundClaims = false;
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = false,
-            ValidateAudience = false,
-            ValidateLifetime = false,
-            ValidateIssuerSigningKey = false,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"]!)
-            ),
-            NameClaimType = ClaimTypes.NameIdentifier
-        };
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
 
-        options.Events = new JwtBearerEvents
-        {
-            OnMessageReceived = ctx =>
-            {
-                Console.WriteLine("Authorization header: " + ctx.Request.Headers["Authorization"]);
-                return Task.CompletedTask;
-            }
-        };
-    });
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"]!))
+    };
+});
+
+// Authorization
 builder.Services.AddAuthorization();
 
+// Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Name = "Jwt Authentication",
-        Description = "Enter your Jwt token in this field",
+        Name = "Authorization",
+        Description = "Enter JWT Bearer token",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.Http,
         Scheme = JwtBearerDefaults.AuthenticationScheme,
@@ -73,21 +70,24 @@ builder.Services.AddSwaggerGen(options =>
                     Id = "Bearer"
                 }
             },
-            new string[] {}
+            new string[]{}
         }
     });
 });
 
+// DbContext
 builder.Services.AddDbContext<YourFilmsDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("YourFilmsContext") ?? 
+    options.UseNpgsql(builder.Configuration.GetConnectionString("YourFilmsContext") ??
     throw new InvalidOperationException("Connection string 'YourFilmsContext' not found.")));
 
+// Redis
 builder.Services.AddStackExchangeRedisCache(options =>
 {
-    options.Configuration = builder.Configuration.GetConnectionString("Cache") ?? 
+    options.Configuration = builder.Configuration.GetConnectionString("Cache") ??
     throw new InvalidOperationException("Connection string 'Cache' not found.");
 });
 
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(corsPolicy, policy =>
@@ -101,7 +101,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Swagger pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -109,8 +109,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors(corsPolicy);
-
-//app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();

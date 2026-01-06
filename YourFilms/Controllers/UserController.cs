@@ -5,8 +5,7 @@ using YourFilms.DTOs;
 using YourFilms.Models;
 using YourFilms.Services;
 using YourFilms.Services.Authorization;
-
-// For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+using System.IdentityModel.Tokens.Jwt;
 
 namespace YourFilms.Controllers
 {
@@ -32,38 +31,21 @@ namespace YourFilms.Controllers
             return Unauthorized("Wrong username or password.");
         }
 
-        // DELETE api/<UserController>/5
-        [HttpGet]
-        [Authorize]
-        public string GetHash(string password)
-        {
-            return Hash.getHashSha256(password);
-        }
-
+        // GET api/<UserController>/me
         [Authorize]
         [HttpGet("me")]
-        public ActionResult<UserDto> GetMe()
+        public IActionResult GetMe()
         {
-            var id = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var username = User.FindFirstValue(ClaimTypes.Name);
             var email = User.FindFirstValue(ClaimTypes.Email);
 
-            if (id is null)
-                return Unauthorized();
-
-            return Ok(new UserDto
+            return Ok(new
             {
-                Id = int.Parse(id),
-                Username = username!,
-                Email = email!,
-                CreatedAt = DateTime.MinValue // если нужно — бери из БД
+                Id = userId,
+                Username = username,
+                Email = email
             });
-        }
-
-        [HttpGet("claims")]
-        public IActionResult Claims()
-        {
-            return Ok(User.Claims.Select(c => new { c.Type, c.Value }));
         }
     }
 }
