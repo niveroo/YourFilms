@@ -11,21 +11,10 @@ namespace YourFilms.Services.Authorization
     {
         public async Task<string?> handle(LoginRequestDTO request)
         {
-            /*var user = await context.Users
-                .FirstOrDefaultAsync(u => u.Username == request.Username);*/
+            var user = await context.Users
+                .FirstOrDefaultAsync(u => u.Username == request.Username);
 
             var passwordHasher = new PasswordHasher<User>();
-
-            //Test user
-            var user = new Models.User()
-            {
-                Id = 1,
-                Username = "nivero",
-                CreatedAt = DateTime.UtcNow,
-                Email = "nivero@gmail.com",
-            };
-            user.PasswordHash = passwordHasher.HashPassword(user, "123");
-            //test user
 
             if (user == null)
             {
@@ -39,8 +28,8 @@ namespace YourFilms.Services.Authorization
             {
                 return null;
             }
-
             string token = tokenProvider.Create(user);
+
             return token;
         }
     }

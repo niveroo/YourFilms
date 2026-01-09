@@ -13,13 +13,8 @@ public sealed class TokenProvider(IConfiguration configuration)
         var secretKey = configuration["Jwt:SecretKey"]
             ?? throw new InvalidOperationException("JWT Secret Key is not configured.");
 
-        Console.WriteLine(secretKey);
-
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
-
-        Console.WriteLine(securityKey.ToString());
-        Console.WriteLine(credentials.ToString());
 
         var claims = new List<Claim>
         {
