@@ -14,21 +14,35 @@ namespace YourFilms.Controllers
     public class UserController : ControllerBase
     {
         private readonly LoginUser _loginUserService;
+        private readonly RegisterUser _registerUserService;
 
-        public UserController(LoginUser loginUserService)
+        public UserController(LoginUser loginUserService, RegisterUser registerUserService)
         {
             _loginUserService = loginUserService;
+            _registerUserService = registerUserService;
         }
         // POST api/<UserController>
-        [HttpPost]
+        [HttpPost("login")]
         public async Task<ActionResult<string>> Login( [FromBody] LoginRequestDTO request)
         {
-            var token = await _loginUserService.handle(request);
+            var token = await _loginUserService.LoginAsync(request);
             if (token != null)
             {
                 return Ok(token);
             }
             return Unauthorized("Wrong username or password.");
+        }
+
+        // POST api/<UserController>/register
+        [HttpPost("register")]
+        public async Task<ActionResult<string>> Register([FromBody] RegisterRequestDTO request)
+        {
+            var result = await _registerUserService.RegisterAsync(request);
+            if (!result.Success)
+            {
+                return BadRequest(result.ErrorMessage);
+            }
+            return Ok();
         }
 
         // GET api/<UserController>/me

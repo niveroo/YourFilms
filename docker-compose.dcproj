@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" Sdk="Microsoft.Docker.Sdk">
   <PropertyGroup Label="Globals">
+    <DockerComposeProjectName>yourfilms</DockerComposeProjectName>
     <ProjectVersion>2.1</ProjectVersion>
     <DockerTargetOS>Linux</DockerTargetOS>
     <DockerPublishLocally>False</DockerPublishLocally>
@@ -10,6 +11,7 @@
     <DockerServiceName>yourfilms</DockerServiceName>
   </PropertyGroup>
   <ItemGroup>
+    <None Include=".env" />
     <None Include="docker-compose.override.yml">
       <DependentUpon>docker-compose.yml</DependentUpon>
     </None>

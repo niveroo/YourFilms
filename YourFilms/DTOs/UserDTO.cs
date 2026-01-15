@@ -1,6 +1,6 @@
-﻿namespace YourFilms.Models;
+﻿namespace YourFilms.DTOs;
 
-public sealed class UserDto
+public sealed class UserDTO
 {
     public int Id { get; init; }
     public string Username { get; init; } = null!;

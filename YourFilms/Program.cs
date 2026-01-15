@@ -2,11 +2,11 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System.Security.Claims;
 using System.Text;
 using YourFilms.Infrastructure.Db;
 using YourFilms.Services;
 using YourFilms.Services.Authorization;
+using YourFilms.Services.Interactions;
 
 var builder = WebApplication.CreateBuilder(args);
 var corsPolicy = "AllowFrontend";
@@ -19,6 +19,10 @@ builder.Services.AddHttpClient<TmdbClient>();
 builder.Services.AddScoped<TmdbApiService>();
 builder.Services.AddSingleton<TokenProvider>();
 builder.Services.AddScoped<LoginUser>();
+builder.Services.AddScoped<RegisterUser>();
+builder.Services.AddScoped<MediaSyncService>();
+builder.Services.AddScoped<BookmarkService>();
+builder.Services.AddScoped<ReviewService>();
 
 // Authentication + JWT
 builder.Services.AddAuthentication(options =>
@@ -122,13 +126,12 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = services.GetRequiredService<YourFilmsDbContext>();
-        // Это создаст базу и таблицы, если их нет
         context.Database.EnsureCreated();
     }
     catch (Exception ex)
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Ошибка при создании базы данных.");
+        logger.LogError(ex, "Error creating database.");
     }
 }
 
