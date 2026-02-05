@@ -40,13 +40,38 @@ namespace YourFilms.Controllers
             }
         }
 
-        //## TODO: Add userid and review user id checking
+        // UPDATE: api/reviews/{id}
+        [HttpPut("{id}")]
+        [Authorize]
+        public async Task<IActionResult> Update(UpdateReviewDTO dto)
+        {
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId))
+            {
+                return Unauthorized("User ID not found in token");
+            }
+
+            var review = await _reviewService.UpdateReviewAsync(userId, dto);
+
+            if (review == null) return NotFound("Review not found");
+
+            return Ok();
+        }
+
         // DELETE: api/reviews/{id} 
         [HttpDelete("{id}")]
         [Authorize]
         public async Task<IActionResult> Delete(int id)
         {
-            var success = await _reviewService.DeleteReviewAsync(id);
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId))
+            {
+                return Unauthorized("User ID not found in token");
+            }
+
+            var success = await _reviewService.DeleteReviewAsync(userId, id);
 
             if (!success) return NotFound("Review not found");
 
@@ -63,7 +88,7 @@ namespace YourFilms.Controllers
 
         // GET: api/reviews/user/{userId}
         [HttpGet("user/")]
-        public async Task<IActionResult> GetByUser()
+        public async Task<IActionResult> GetMyReviews()
         {
             var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId))

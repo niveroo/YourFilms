@@ -86,5 +86,20 @@ namespace YourFilms.Controllers
                 return BadRequest(ex.Message);
             }
         }
+
+        [HttpGet("trending/{timeWindow}")]
+        public async Task<ActionResult<PagedResult<SearchDTO>>> GetTrending(string timeWindow,int page, CancellationToken cancellationToken)
+        {
+            if (timeWindow != "day" && timeWindow != "week")
+            {
+                return BadRequest("Time window must be 'day' or 'week'.");
+            }
+            var result = await _tmdb.GetTrendingAsync(timeWindow, page, cancellationToken);
+            if (result.Results.Count == 0)
+            {
+                return NotFound("No results found.");
+            }
+            return Ok(result);
+        }
     }
 }

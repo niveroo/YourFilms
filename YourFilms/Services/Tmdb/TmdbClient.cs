@@ -49,9 +49,7 @@ public class TmdbClient
         var sortBy = sortOption switch
         {
             TmdbSortOption.PopularityDesc => "popularity.desc",
-            TmdbSortOption.PopularityAsc => "popularity.asc",
             TmdbSortOption.RatingDesc => "vote_average.desc",
-            TmdbSortOption.RatingAsc => "vote_average.asc",
             _ => "popularity.desc"
         };
 
@@ -107,6 +105,12 @@ public class TmdbClient
         return GetAsync<TmdbGenresResponse>(url, cancellationToken);
     }
     //
+
+    public Task<TmdbPagedResponse<TmdbSearchItem>?> GetTrendingAsync(string timeWindow, int page = 1, CancellationToken cancellationToken = default)
+    {
+        var url = $"trending/all/{timeWindow}?language=en-US&page={page}";
+        return GetAsync<TmdbPagedResponse<TmdbSearchItem>>(url, cancellationToken);
+    }
 
     private Task<T?> GetAsync<T>(string url, CancellationToken cancellationToken)
         => _http.GetFromJsonAsync<T>(url, JsonOptions, cancellationToken);

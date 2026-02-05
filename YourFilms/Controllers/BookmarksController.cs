@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using YourFilms.DTOs;
+using YourFilms.Models;
 using YourFilms.Services.Interactions;
 
 namespace YourFilms.Controllers
@@ -18,7 +19,6 @@ namespace YourFilms.Controllers
         }
 
         // POST: api/bookmarks
-        // Добавление в избранное
         [HttpPost]
         [Authorize]
         public async Task<IActionResult> Add([FromBody] AddBookmarkDTO dto)
@@ -29,28 +29,15 @@ namespace YourFilms.Controllers
                 return Unauthorized();
             }
 
-            try
-            {
-                // Сервис сам синхронизирует медиа с TMDB и сохранит закладку
-                var success = await _bookmarkService.AddBookmarkAsync(userId, dto);
+            var bookmark = await _bookmarkService.AddBookmarkAsync(userId, dto);
 
-                if (!success) return BadRequest("Bookmark already exists or could not be added");
-
-                return Ok(new { Message = "Added to bookmarks" });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            return Ok(bookmark);
         }
 
         // DELETE: api/bookmarks
-        // Удаление из избранного
-        // Ожидает query параметры: ?mediaId=10&type=movie
-        // ВНИМАНИЕ: mediaId здесь должен быть локальным ID из вашей базы (MovieId), так как сервис ищет по нему.
-        [HttpDelete]
+        [HttpDelete("{bookmarkId}")]
         [Authorize]
-        public async Task<IActionResult> Remove([FromQuery] int mediaId, [FromQuery] string type)
+        public async Task<IActionResult> Remove(int bookmarkId)
         {
             var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId))
@@ -58,15 +45,14 @@ namespace YourFilms.Controllers
                 return Unauthorized();
             }
 
-            var success = await _bookmarkService.RemoveBookmarkAsync(userId, mediaId, type);
+            var deleted = await _bookmarkService.RemoveBookmarkAsync(userId, bookmarkId);
 
-            if (!success) return NotFound("Bookmark not found");
+            if (deleted == false) return NotFound("Bookmark not found");
 
-            return NoContent();
+            return Ok();
         }
 
         // GET: api/bookmarks/check
-        // Проверка, есть ли медиа в закладках (и получение ID закладки)
         [HttpGet("check")]
         [Authorize]
         public async Task<IActionResult> Check([FromQuery] int mediaId, [FromQuery] string type)
@@ -108,6 +94,24 @@ namespace YourFilms.Controllers
         {
             var bookmarks = await _bookmarkService.GetUserBookmarksAsync(userId);
             return Ok(bookmarks);
+        }
+
+        // PUT: api/bookmarks/{bookmarkId}
+        [HttpPut("{bookmarkId}")]
+        [Authorize]
+        public async Task<IActionResult> Update(UpdateBookmarkDTO dto)
+        {
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId))
+            {
+                return Unauthorized();
+            }
+
+            var bookmark = await _bookmarkService.UpdateBookmarkAsync(userId, dto);
+
+            if (bookmark == null) return NotFound("Bookmark not found");
+
+            return Ok(bookmark);
         }
     }
 }

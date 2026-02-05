@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.JSInterop.Infrastructure;
 using YourFilms.DTOs;
 using YourFilms.Infrastructure.Db;
 using YourFilms.Models;
@@ -36,10 +37,22 @@ namespace YourFilms.Services.Interactions
             return review;
         }
 
-        public async Task<bool> DeleteReviewAsync(int reviewId)
+        public async Task<Review?> UpdateReviewAsync(int userId, UpdateReviewDTO dto)
+        {
+            var review = await _context.Reviews.FindAsync(dto.reviewId);
+            if (review == null || review.UserId != userId) return null;
+            review.Rating = dto.Rating;
+            review.Content = dto.Content;
+            _context.Reviews.Update(review);
+            await _context.SaveChangesAsync();
+            return review;
+        }
+
+        public async Task<bool> DeleteReviewAsync(int userId, int reviewId)
         {
             var review = await _context.Reviews.FindAsync(reviewId);
             if (review == null) return false;
+            if (review.UserId != userId) return false;
 
             _context.Reviews.Remove(review);
             await _context.SaveChangesAsync();

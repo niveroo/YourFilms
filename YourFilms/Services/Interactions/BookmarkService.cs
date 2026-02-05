@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.EntityFrameworkCore;
 using YourFilms.DTOs;
 using YourFilms.Infrastructure.Db;
 using YourFilms.Models;
@@ -16,36 +17,35 @@ namespace YourFilms.Services.Interactions
             _mediaSyncService = mediaSyncService;
         }
 
-        public async Task<bool> AddBookmarkAsync(int userId, AddBookmarkDTO dto)
+        public async Task<Bookmark> AddBookmarkAsync(int userId, AddBookmarkDTO dto)
         {
-            // Ensure local media exists
             int localMediaId = await _mediaSyncService.GetOrCreateLocalMediaIdAsync(dto.TmdbId, dto.MediaType);
-
-            string categoryString = dto.Category.ToString();
 
             var exists = await _context.Bookmarks
                 .AnyAsync(b => b.UserId == userId && b.MovieId == localMediaId);
-
-            if (exists) return false;
+            if (exists)
+            {
+                throw new InvalidOperationException("Bookmark already exists");
+            }
 
             var bookmark = new Bookmark
             {
                 UserId = userId,
                 MovieId = localMediaId,
-                Category = categoryString,
+                Category = dto.Category.ToString(),
                 IsFavorite = dto.IsFavorite,
                 CreatedAt = DateTime.UtcNow
             };
 
             _context.Bookmarks.Add(bookmark);
             await _context.SaveChangesAsync();
-            return true;
+            return bookmark;
         }
 
-        public async Task<bool> RemoveBookmarkAsync(int userId, int mediaId, string mediaType)
+        public async Task<bool> RemoveBookmarkAsync(int userId, int bookmarkId)
         {
             var bookmark = await _context.Bookmarks
-                .FirstOrDefaultAsync(b => b.UserId == userId && b.MovieId == mediaId && b.Category == mediaType);
+                .FirstOrDefaultAsync(b => b.UserId == userId && b.Id == bookmarkId);
 
             if (bookmark == null) return false;
 
@@ -67,6 +67,21 @@ namespace YourFilms.Services.Interactions
             int localMediaId = await _mediaSyncService.GetOrCreateLocalMediaIdAsync(mediaId, mediaType);
             return await _context.Bookmarks
                 .FirstOrDefaultAsync(b => b.UserId == userId && b.MovieId == localMediaId);
+        }
+
+        public async Task<Bookmark> UpdateBookmarkAsync(int userId, UpdateBookmarkDTO dto)
+        {
+            var bookmark = await _context.Bookmarks
+                .FirstOrDefaultAsync(b => b.Id == dto.BookmarkId && b.UserId == userId);
+            if (bookmark == null)
+            {
+                throw new InvalidOperationException("Bookmark not found.");
+            }
+
+            bookmark.IsFavorite = dto.IsFavorite;
+            bookmark.Category = dto.Category.ToString();
+            await _context.SaveChangesAsync();
+            return bookmark;
         }
     }
 }
