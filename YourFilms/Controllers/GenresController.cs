@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Distributed;
+using System.Text.Json;
 using YourFilms.DTOs;
 using YourFilms.Services;
 
@@ -9,6 +11,7 @@ namespace YourFilms.Controllers;
 public class GenresController : ControllerBase
 {
     private readonly TmdbApiService _tmdb;
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public GenresController(TmdbApiService tmdb)
     {
@@ -18,17 +21,12 @@ public class GenresController : ControllerBase
     [HttpGet("movie")]
     public async Task<ActionResult<List<GenreDTO>>> GetMovieGenres(CancellationToken cancellationToken)
     {
-        var genres = await _tmdb.GetGenresAsync("movie", cancellationToken);
-        return genres.Count == 0 ? NotFound("No movie genres returned from TMDb.") : Ok(genres);
+        return await _tmdb.GetMoviesGenresAsync("movie", cancellationToken);
     }
 
     [HttpGet("tv")]
     public async Task<ActionResult<List<GenreDTO>>> GetTvGenres(CancellationToken cancellationToken)
     {
-        var genres = await _tmdb.GetGenresAsync("tv", cancellationToken);
-        return genres.Count == 0 ? NotFound("No TV genres returned from TMDb.") : Ok(genres);
+        return await _tmdb.GetMoviesGenresAsync("tv", cancellationToken);
     }
 }
-
-
-

@@ -1,8 +1,8 @@
 using System.Text.Json.Serialization;
 
-namespace YourFilms.Services.Tmdb.Models;
+namespace YourFilms.Services.Tmdb.Models.Movie;
 
-public sealed class TmdbMovieItem
+public class TmdbMovieDetails
 {
     [JsonPropertyName("id")]
     public int Id { get; set; }
@@ -19,6 +19,9 @@ public sealed class TmdbMovieItem
     [JsonPropertyName("release_date")]
     public string? ReleaseDate { get; set; }
 
+    [JsonPropertyName("runtime")]
+    public int? Runtime { get; set; }
+
     [JsonPropertyName("poster_path")]
     public string? PosterPath { get; set; }
 
@@ -34,7 +37,9 @@ public sealed class TmdbMovieItem
     [JsonPropertyName("popularity")]
     public double? Popularity { get; set; }
 
-    [JsonPropertyName("genre_ids")]
-    public List<int>? GenreIds { get; set; }
-}
+    [JsonPropertyName("status")]
+    public string? Status { get; set; }
 
+    [JsonPropertyName("genres")]
+    public List<TmdbGenre>? Genres { get; set; }
+}

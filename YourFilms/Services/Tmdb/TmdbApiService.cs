@@ -1,5 +1,13 @@
-﻿using YourFilms.DTOs;
-using YourFilms.Services.Tmdb.Models;
+﻿using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.Extensions.Caching.Distributed;
+using System;
+using System.Linq;
+using System.Text.Json;
+using System.Threading;
+using YourFilms.DTOs;
+using YourFilms.Services.Tmdb;
+using YourFilms.Services.Tmdb.Models.Movie;
+using YourFilms.Services.Tmdb.Models.Tv;
 using static YourFilms.Services.Tmdb.DTOConverter;
 
 namespace YourFilms.Services;
@@ -7,126 +15,204 @@ namespace YourFilms.Services;
 public class TmdbApiService
 {
     private readonly TmdbClient _client;
+    private readonly IDistributedCache _cache;
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    public TmdbApiService(TmdbClient client)
+    public TmdbApiService(TmdbClient client, IDistributedCache cache)
     {
         _client = client;
+        _cache = cache;
     }
 
     // Search movies and TV shows by query
-    public async Task<List<SearchMovieDTO>> SearchMoviesAsync(string query, int page, CancellationToken cancellationToken = default)
+    public async Task<PagedResult<SearchDTO>> SearchAllAsync(
+    string query,
+    int page,
+    CancellationToken cancellationToken = default)
     {
         var response = await _client.SearchAllAsync(query, page, cancellationToken);
 
         if (response?.Results == null)
         {
-            return new List<SearchMovieDTO>();
+            return new PagedResult<SearchDTO>
+            {
+                Page = 0,
+                TotalPages = 0,
+                TotalResults = 0,
+                Results = new List<SearchDTO>()
+            };
         }
 
-        return response.Results
-            .Select(result => ToSearchMovieDto(result))
-            .Where(dto => dto is not null)
-            .Select(dto => dto!)
+        // Fetch both genre sets
+        var movieGenres = await GetMoviesGenresAsync("movie", cancellationToken);
+        var tvGenres = await GetMoviesGenresAsync("tv", cancellationToken);
+
+        var results = response.Results
+            .Where(r => r.MediaType == "movie" || r.MediaType == "tv")
+            .Select(r => DTOConverter.ToSearchDto(r, movieGenres, tvGenres))
             .ToList();
-    }
 
-    // Get detailed information about a movie or TV show by ID
-    public async Task<MovieDTO?> GetDetailsAsync(string type, int id, CancellationToken cancellationToken = default)
-    {
-        if (!TryGetTypeContext(type, out var context))
+        return new PagedResult<SearchDTO>
         {
-            throw new ArgumentException("Type must be 'movie' or 'tv'.", nameof(type));
-        }
-
-        var ctx = context!;
-
-        TmdbTitleDetails? details = ctx.ApiType switch
-        {
-            "movie" => await _client.GetMovieDetailsAsync(id, cancellationToken),
-            "tv" => await _client.GetTvDetailsAsync(id, cancellationToken),
-            _ => null
+            Page = response.Page,
+            TotalPages = response.TotalPages,
+            TotalResults = response.TotalResults,
+            Results = results
         };
-
-        return details is null ? null : ToMovieDto(details, ctx.MediaType);
     }
 
-    public async Task<List<SearchMovieDTO>> DiscoverAsync(string type, CancellationToken cancellationToken = default)
+    // Discover movies and TV shows
+    public async Task<PagedResult<SearchDTO>> GetDiscoverAsync(
+        string type,
+        TmdbSortOption sortOption,
+        int page = 1,
+        int? genreId = null,
+        int? year = null,
+        CancellationToken cancellationToken = default)
     {
-        if (!TryGetTypeContext(type, out var context))
+        var titles = await _client.GetDiscoverAsync(type, sortOption, page, genreId, year, cancellationToken);
+
+        if (titles?.Results == null)
         {
-            throw new ArgumentException("Type must be 'movie' or 'tv'.", nameof(type));
+            return new PagedResult<SearchDTO>
+            {
+                Page = 0,
+                TotalPages = 0,
+                TotalResults = 0,
+                Results = new List<SearchDTO>()
+            };
         }
 
-        var ctx = context!;
-        var response = await _client.DiscoverAsync(ctx.ApiType, ctx.GenreFilterId, cancellationToken);
-        return MapCollection(response, ctx.MediaType, ctx.GenreFilterId);
+        var movieGenres = await GetMoviesGenresAsync("movie", cancellationToken);
+        var tvGenres = await GetMoviesGenresAsync("tv", cancellationToken);
+
+        var results = titles.Results
+            .Select(r => DTOConverter.ToSearchDto(r, movieGenres, tvGenres))
+            .ToList();
+
+        return new PagedResult<SearchDTO>
+        {
+            Page = titles.Page,
+            TotalPages = titles.TotalPages,
+            TotalResults = titles.TotalResults,
+            Results = results
+        };
     }
 
-    public async Task<List<SearchMovieDTO>> GetPopularAsync(string type, CancellationToken cancellationToken = default)
+    // Returns TMDb movie details DTO model
+    public async Task<MovieDetailsDTO?> GetMovieDetailsAsync(int id, CancellationToken cancellationToken = default)
     {
-        if (!TryGetTypeContext(type, out var context))
-        {
-            throw new ArgumentException("Type must be 'movie' or 'tv'.", nameof(type));
-        }
+        var movie = await _client.GetMovieDetailsAsync(id, cancellationToken);
 
-        var ctx = context!;
-        var response = await _client.GetPopularAsync(ctx.ApiType, cancellationToken);
-        return MapCollection(response, ctx.MediaType, ctx.GenreFilterId);
+        return ToDetailsDto(movie);
     }
 
-    public async Task<List<GenreDTO>> GetGenresAsync(string type, CancellationToken cancellationToken = default)
+    // Returns TMDb tv details DTO model
+    public async Task<TvDetailsDTO?> GetTvDetailsAsync(int id, CancellationToken cancellationToken = default)
     {
-        if (!TryGetTypeContext(type, out var context))
+        var tv = await _client.GetTvDetailsAsync(id, cancellationToken);
+
+        return ToDetailsDto(tv);
+    }
+
+    // Get movie or tv genres, with caching
+    public async Task<List<GenreDTO>> GetMoviesGenresAsync(string type, CancellationToken cancellationToken = default)
+    {
+        string cacheKey = $"genres:{type}";
+
+        // Try cache
+        var cached = await _cache.GetStringAsync(cacheKey, cancellationToken);
+        if (cached != null)
         {
-            throw new ArgumentException("Type must be 'movie' or 'tv''.", nameof(type));
+            return JsonSerializer.Deserialize<List<GenreDTO>>(cached, JsonOptions)
+                   ?? new List<GenreDTO>();
         }
 
-        var ctx = context!;
-        var response = await _client.GetGenresAsync(ctx.ApiType, cancellationToken);
+        // Fetch from TMDb
+        var genres = await _client.GetGenresAsync(type, cancellationToken);
 
-        return response?.Genres?
+        if (genres?.Genres == null || genres.Genres.Count == 0)
+            return new List<GenreDTO>();
+
+        // Map TMDb → DTO
+        var mappedGenres = genres.Genres
             .Where(g => !string.IsNullOrWhiteSpace(g.Name))
-            .Select(g => new GenreDTO { Id = g.Id, Name = g.Name! })
-            .ToList() ?? new List<GenreDTO>();
-    }
-
-    private static List<SearchMovieDTO> MapCollection(TmdbSearchResponse? response, string mediaTypeOverride, int? requiredGenreId = null)
-    {
-        if (response?.Results == null)
-        {
-            return new List<SearchMovieDTO>();
-        }
-
-        var filtered = requiredGenreId.HasValue
-            ? response.Results.Where(r => r.GenreIds?.Contains(requiredGenreId.Value) == true)
-            : response.Results.AsEnumerable();
-
-        return filtered
-            .Select(result => ToSearchMovieDto(result, mediaTypeOverride))
-            .Where(dto => dto is not null)
-            .Select(dto => dto!)
+            .Select(g => new GenreDTO
+            {
+                Id = g.Id,
+                Name = g.Name!
+            })
             .ToList();
+
+        // Save to Redis
+        await _cache.SetStringAsync(
+            cacheKey,
+            JsonSerializer.Serialize(mappedGenres, JsonOptions),
+            new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(12)
+            },
+            cancellationToken
+        );
+
+        return mappedGenres;
     }
 
-    
-
-    private static bool TryGetTypeContext(string type, out TmdbTypeContext? context)
+    public async Task<PagedResult<SearchDTO>> GetTrendingAsync(string timeWindow, int page, CancellationToken cancellationToken = default)
     {
-        context = null;
-        if (string.IsNullOrWhiteSpace(type))
+        string cacheKey = $"trending:{timeWindow}:page:{page}";
+
+        var cached = await _cache.GetStringAsync(cacheKey, cancellationToken);
+        if (cached != null)
         {
-            return false;
+            return JsonSerializer.Deserialize<PagedResult<SearchDTO>>(cached, JsonOptions)
+                   ?? new PagedResult<SearchDTO>
+                   {
+                       Page = 0,
+                       TotalPages = 0,
+                       TotalResults = 0,
+                       Results = new List<SearchDTO>()
+                   };
         }
 
-        context = type.Trim().ToLowerInvariant() switch
+        var titles = await _client.GetTrendingAsync(timeWindow, page, cancellationToken);
+
+        if (titles?.Results == null)
         {
-            "movie" => new TmdbTypeContext("movie", "movie", null),
-            "tv" => new TmdbTypeContext("tv", "tv", null),
-            _ => null
+            return new PagedResult<SearchDTO>
+            {
+                Page = 0,
+                TotalPages = 0,
+                TotalResults = 0,
+                Results = new List<SearchDTO>()
+            };
+        }
+
+        var movieGenres = await GetMoviesGenresAsync("movie", cancellationToken);
+        var tvGenres = await GetMoviesGenresAsync("tv", cancellationToken);
+
+        var results = titles.Results
+            .Select(r => DTOConverter.ToSearchDto(r, movieGenres, tvGenres))
+            .ToList();
+
+        var pagedResult = new PagedResult<SearchDTO>
+        {
+            Page = titles.Page,
+            TotalPages = titles.TotalPages,
+            TotalResults = titles.TotalResults,
+            Results = results
         };
 
-        return context is not null;
+        await _cache.SetStringAsync(
+        cacheKey,
+        JsonSerializer.Serialize(pagedResult, JsonOptions),
+        new DistributedCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(2)
+        },
+        cancellationToken
+    );
+
+        return pagedResult;
     }
 }
-
-internal sealed record TmdbTypeContext(string ApiType, string MediaType, int? GenreFilterId);

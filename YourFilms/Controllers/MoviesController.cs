@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using YourFilms.DTOs;
 using YourFilms.Services;
+using YourFilms.Services.Tmdb;
 
 namespace YourFilms.Controllers
 {
@@ -15,48 +16,55 @@ namespace YourFilms.Controllers
             _tmdb = tmdb;
         }
 
+        // GET api/movies/search Search all by name
         [HttpGet("search")]
-        public async Task<ActionResult<List<SearchMovieDTO>>> Search([FromQuery] string query, int page, CancellationToken cancellationToken)
+        public async Task<ActionResult<PagedResult<SearchDTO>>> Search([FromQuery] string query, int page, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(query))
+                return BadRequest("Query cannot be empty.");
+
+            var result = await _tmdb.SearchAllAsync(query, page, cancellationToken);
+
+            if (result.Results.Count == 0)
+                return NotFound("No results found.");
+
+            return Ok(result);
+        }
+
+        // GET api/movies/discover/{type} Search with filters
+        [HttpGet("discover/{type}")]
+        public async Task<ActionResult<PagedResult<SearchDTO>>> Discover(
+            string type,
+            [FromQuery] TmdbSortOption sort = TmdbSortOption.PopularityDesc,
+            [FromQuery] int page = 1,
+            [FromQuery] int? genreId = null,
+            [FromQuery] int? year = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (page < 1) page = 1;
+
+            if (type != "movie" && type != "tv")
             {
-                return BadRequest("Query cannot be empty or whitespace.");
+                return BadRequest("Type must be 'movie' or 'tv'.");
             }
 
-            var movies = await _tmdb.SearchMoviesAsync(query, page, cancellationToken);
-
-            if (movies.Count == 0)
+            var result = await _tmdb.GetDiscoverAsync(type, sort, page, genreId, year, cancellationToken);
+            if (result.Results.Count == 0)
             {
                 return NotFound("No results found.");
             }
 
-            return Ok(movies);
+            return Ok(result);
         }
 
-        /// <summary>
-        /// Get popular movies and TV shows for homepage
-        /// GET api/movies/popular
-        /// </summary>
-        [HttpGet("popular")]
-        public async Task<ActionResult<List<SearchMovieDTO>>> GetPopular(string type, CancellationToken cancellationToken)
-        {
-            var movies = await _tmdb.GetPopularAsync(type, cancellationToken);
-
-            if (movies.Count == 0)
-            {
-                return NotFound("No popular content found.");
-            }
-
-            return Ok(movies);
-        }
-
-        [HttpGet("details/{type}/{id:int}")]
-        public async Task<ActionResult<MovieDTO>> GetDetails(string type, int id, CancellationToken cancellationToken)
+        // GET api/movies/details/{type}/{id} Returns detailed information about a movie or TV show //
+        [HttpGet("details/movie/{id:int}")]
+        public async Task<ActionResult<MovieDetailsDTO>> GetMovieDetails(int id, CancellationToken cancellationToken)
         {
             try
             {
-                var movie = await _tmdb.GetDetailsAsync(type, id, cancellationToken);
-                return movie is null ? NotFound($"TMDb returned no {type} with id {id}.") : Ok(movie);
+                var title = await _tmdb.GetMovieDetailsAsync(id, cancellationToken);
+                return title is null ? NotFound($"TMDb returned no movie with id {id}.") : Ok(title);
             }
             catch (ArgumentException ex)
             {
@@ -64,18 +72,34 @@ namespace YourFilms.Controllers
             }
         }
 
-        [HttpGet("discover/{type}")]
-        public async Task<ActionResult<List<MovieDTO>>> Discover(string type, CancellationToken cancellationToken)
+        // GET api/movies/details/{type}/{id} Returns detailed information about a movie or TV show //
+        [HttpGet("details/tv/{id:int}")]
+        public async Task<ActionResult<TvDetailsDTO>> GetTvDetails(int id, CancellationToken cancellationToken)
         {
             try
             {
-                var movies = await _tmdb.DiscoverAsync(type, cancellationToken);
-                return movies.Count == 0 ? NotFound($"TMDb returned no {type} titles for discover.") : Ok(movies);
+                var title = await _tmdb.GetTvDetailsAsync(id, cancellationToken);
+                return title is null ? NotFound($"TMDb returned no tv with id {id}.") : Ok(title);
             }
             catch (ArgumentException ex)
             {
                 return BadRequest(ex.Message);
             }
+        }
+
+        [HttpGet("trending/{timeWindow}")]
+        public async Task<ActionResult<PagedResult<SearchDTO>>> GetTrending(string timeWindow,int page, CancellationToken cancellationToken)
+        {
+            if (timeWindow != "day" && timeWindow != "week")
+            {
+                return BadRequest("Time window must be 'day' or 'week'.");
+            }
+            var result = await _tmdb.GetTrendingAsync(timeWindow, page, cancellationToken);
+            if (result.Results.Count == 0)
+            {
+                return NotFound("No results found.");
+            }
+            return Ok(result);
         }
     }
 }

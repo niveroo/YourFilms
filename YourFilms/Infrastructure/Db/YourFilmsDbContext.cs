@@ -1,8 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using System.Security.Cryptography.X509Certificates;
 using YourFilms.Models;
 
-internal class YourFilmsDbContext : DbContext
+namespace YourFilms.Infrastructure.Db;
+public class YourFilmsDbContext : DbContext
 {
     public YourFilmsDbContext(DbContextOptions<YourFilmsDbContext> options)
         : base(options)

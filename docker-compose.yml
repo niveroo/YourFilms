@@ -1,13 +1,19 @@
+name: yourfilms
+
 services:
   yourfilms.api:
     build:
       context: .
       dockerfile: YourFilms/Dockerfile
-    image: yourfilms.api
     container_name: yourfilms.api
     ports:
       - "5000:8080"
-      - "5001:8081"
+    environment:
+      ASPNETCORE_URLS: "http://+:8080"
+      ASPNETCORE_ENVIRONMENT: Development
+    depends_on:
+      - yourfilms.db
+      - yourfilms.cache
 
   yourfilms.db:
     image: postgres:17-alpine
@@ -19,12 +25,16 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - yourfilms-db-data:/var/lib/postgresql/data
+      - db-data:/var/lib/postgresql/data
+
   yourfilms.cache:
     image: redis:latest
     container_name: yourfilms.cache
     ports:
       - "6379:6379"
+    volumes:
+      - redis-data:/data
 
 volumes:
-    yourfilms-db-data:
+  db-data:
+  redis-data:
