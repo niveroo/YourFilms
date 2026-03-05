@@ -15,18 +15,17 @@ namespace YourFilms.Services
             _tmdbService = tmdbService;
         }
 
-        public async Task<int> GetOrCreateLocalMediaIdAsync(int tmdbId, string mediaType)
+        public async Task<int> GetLocalMediaIdAsync(int tmdbId, string mediaType)
         {
-            // 1. Check if it already exists locally
             var existingMedia = await _context.Movies
                 .FirstOrDefaultAsync(m => m.TmdbId == tmdbId && m.MediaType == mediaType);
 
-            if (existingMedia != null)
-            {
-                return existingMedia.Id;
-            }
+            return existingMedia?.Id ?? 0;
+        }
 
-            // 2. Fetch from TMDB
+        public async Task<int> AddLocalMediaAsync(int tmdbId, string mediaType)
+        {
+            // Fetch from TMDB
             Movie newMovie = null;
 
             if (mediaType == "movie")
@@ -70,7 +69,7 @@ namespace YourFilms.Services
                 throw new ArgumentException("Invalid media type. Must be 'movie' or 'tv'.");
             }
 
-            // 3. Save to local DB
+            // Save to local DB
             _context.Movies.Add(newMovie);
             await _context.SaveChangesAsync();
 

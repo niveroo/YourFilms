@@ -126,12 +126,12 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = services.GetRequiredService<YourFilmsDbContext>();
-        context.Database.EnsureCreated();
+        context.Database.Migrate();
     }
     catch (Exception ex)
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Error creating database.");
+        logger.LogError(ex, "Error migrating database.");
     }
 }
 

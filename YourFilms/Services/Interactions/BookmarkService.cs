@@ -19,7 +19,12 @@ namespace YourFilms.Services.Interactions
 
         public async Task<Bookmark> AddBookmarkAsync(int userId, AddBookmarkDTO dto)
         {
-            int localMediaId = await _mediaSyncService.GetOrCreateLocalMediaIdAsync(dto.TmdbId, dto.MediaType);
+            int localMediaId = await _mediaSyncService.GetLocalMediaIdAsync(dto.TmdbId, dto.MediaType);
+
+            if (localMediaId == 0)
+            {
+                localMediaId = await _mediaSyncService.AddLocalMediaAsync(dto.TmdbId, dto.MediaType);
+            }
 
             var exists = await _context.Bookmarks
                 .AnyAsync(b => b.UserId == userId && b.MovieId == localMediaId);
@@ -39,6 +44,10 @@ namespace YourFilms.Services.Interactions
 
             _context.Bookmarks.Add(bookmark);
             await _context.SaveChangesAsync();
+
+            // Load movie for the response
+            await _context.Entry(bookmark).Reference(b => b.Movie).LoadAsync();
+
             return bookmark;
         }
 
@@ -57,6 +66,7 @@ namespace YourFilms.Services.Interactions
         public async Task<List<Bookmark>> GetUserBookmarksAsync(int userId)
         {
             return await _context.Bookmarks
+                .Include(b => b.Movie)
                 .Where(b => b.UserId == userId)
                 .OrderByDescending(b => b.CreatedAt)
                 .ToListAsync();
@@ -64,8 +74,10 @@ namespace YourFilms.Services.Interactions
 
         public async Task<Bookmark?> GetBookmarkAsync(int userId, int mediaId, string mediaType)
         {
-            int localMediaId = await _mediaSyncService.GetOrCreateLocalMediaIdAsync(mediaId, mediaType);
+            int localMediaId = await _mediaSyncService.GetLocalMediaIdAsync(mediaId, mediaType);
+            if (localMediaId == 0) return null;
             return await _context.Bookmarks
+                .Include(b => b.Movie)
                 .FirstOrDefaultAsync(b => b.UserId == userId && b.MovieId == localMediaId);
         }
 
