@@ -2,8 +2,8 @@
 
 public sealed class UserDTO
 {
-    public int Id { get; init; }
-    public string Username { get; init; } = null!;
-    public string Email { get; init; } = null!;
-    public DateTime CreatedAt { get; init; }
+    public int Id { get; set; }
+    public string Username { get; set; }
+    public string Email { get; set; }
+    public DateTime CreatedAt { get; set; }
 }

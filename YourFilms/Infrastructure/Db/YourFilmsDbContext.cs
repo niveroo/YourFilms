@@ -22,6 +22,11 @@ public class YourFilmsDbContext : DbContext
             .HasOne(r => r.User)
             .WithMany()
             .HasForeignKey(r => r.UserId);
+
+        modelBuilder.Entity<Review>()
+            .HasOne(r => r.Movie)
+            .WithMany()
+            .HasForeignKey(r => r.MovieId);
     }
 
     public DbSet<User> Users { get; set; }

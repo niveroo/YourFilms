@@ -73,42 +73,24 @@ namespace YourFilms.Services.Interactions
             return true;
         }
 
-        public async Task<List<ReviewResponseDTO>> GetReviewsByMediaIdAsync(int mediaId, string mediaType)
+        public async Task<List<Review>> GetReviewsByMediaIdAsync(int mediaId, string mediaType)
         {
             int localMediaId = await _mediaSyncService.GetLocalMediaIdAsync(mediaId, mediaType);
-            if (localMediaId == 0) return new List<ReviewResponseDTO>();
+            if (localMediaId == 0) return new List<Review>();
             
             return await _context.Reviews
                 .Include(r => r.User)
                 .Where(r => r.MovieId == localMediaId)
                 .OrderByDescending(r => r.CreatedAt)
-                .Select(r => new ReviewResponseDTO
-                {
-                    Id = r.Id,
-                    UserId = r.UserId,
-                    Username = r.User.Username,
-                    Rating = r.Rating,
-                    Content = r.Content,
-                    CreatedAt = r.CreatedAt
-                })
                 .ToListAsync();
         }
 
-        public async Task<List<ReviewResponseDTO>> GetReviewsByUserIdAsync(int userId)
+        public async Task<List<Review>> GetReviewsByUserIdAsync(int userId)
         {
             return await _context.Reviews
-                .Include(r => r.User)
+                .Include(r => r.Movie)
                 .Where(r => r.UserId == userId)
                 .OrderByDescending(r => r.CreatedAt)
-                .Select(r => new ReviewResponseDTO
-                {
-                    Id = r.Id,
-                    UserId = r.UserId,
-                    Username = r.User.Username,
-                    Rating = r.Rating,
-                    Content = r.Content,
-                    CreatedAt = r.CreatedAt
-                })
                 .ToListAsync();
         }
     }

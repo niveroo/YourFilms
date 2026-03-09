@@ -23,6 +23,7 @@ builder.Services.AddScoped<RegisterUser>();
 builder.Services.AddScoped<MediaSyncService>();
 builder.Services.AddScoped<BookmarkService>();
 builder.Services.AddScoped<ReviewService>();
+builder.Services.AddScoped<UserService>();
 
 // Authentication + JWT
 builder.Services.AddAuthentication(options =>

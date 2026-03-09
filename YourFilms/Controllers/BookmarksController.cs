@@ -53,7 +53,7 @@ namespace YourFilms.Controllers
         }
 
         // GET: api/bookmarks/check
-        [HttpGet("check")]
+        [HttpGet("GetBookmark")]
         [Authorize]
         public async Task<IActionResult> Check([FromQuery] int tmdbId, [FromQuery] string mediaType)
         {
@@ -74,7 +74,7 @@ namespace YourFilms.Controllers
         }
 
         // GET: api/bookmarks/user/me
-        [HttpGet("user/me")]
+        [HttpGet("User/GetMyBookmarks")]
         [Authorize]
         public async Task<IActionResult> GetMyBookmarks()
         {
@@ -89,7 +89,7 @@ namespace YourFilms.Controllers
         }
 
         // GET: api/bookmarks/user/{userId}
-        [HttpGet("user/{userId}")]
+        [HttpGet("User/{userId}")]
         public async Task<IActionResult> GetUserBookmarks(int userId)
         {
             var bookmarks = await _bookmarkService.GetUserBookmarksAsync(userId);
@@ -97,7 +97,7 @@ namespace YourFilms.Controllers
         }
 
         // Update: api/bookmarks/{bookmarkId}
-        [HttpPost("Update/{bookmarkId}")]
+        [HttpPost("Update")]
         [Authorize]
         public async Task<IActionResult> Update(UpdateBookmarkDTO dto)
         {
