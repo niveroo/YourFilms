@@ -18,7 +18,7 @@ namespace YourFilms.Controllers
         }
 
         // POST: api/reviews
-        [HttpPost]
+        [HttpPost("Add")]
         [Authorize]
         public async Task<IActionResult> Add([FromBody] CreateReviewDTO dto)
         {
@@ -41,7 +41,7 @@ namespace YourFilms.Controllers
         }
 
         // UPDATE: api/reviews/{id}
-        [HttpPut("{id}")]
+        [HttpPost("Update")]
         [Authorize]
         public async Task<IActionResult> Update(UpdateReviewDTO dto)
         {
@@ -60,7 +60,7 @@ namespace YourFilms.Controllers
         }
 
         // DELETE: api/reviews/{id} 
-        [HttpDelete("{id}")]
+        [HttpDelete("Delete/{id}")]
         [Authorize]
         public async Task<IActionResult> Delete(int id)
         {
@@ -79,7 +79,7 @@ namespace YourFilms.Controllers
         }
 
         // GET: api/reviews/media/{mediaId}
-        [HttpGet("media/")]
+        [HttpGet("GetReviewsByMediaId")]
         public async Task<IActionResult> GetByMedia(int tmdbId, string mediaType)
         {
             var reviews = await _reviewService.GetReviewsByMediaIdAsync(tmdbId, mediaType);
@@ -87,8 +87,8 @@ namespace YourFilms.Controllers
         }
 
         // GET: api/reviews/user/{userId}
-        [HttpGet("user/")]
-        public async Task<IActionResult> GetMyReviews()
+        [HttpGet("GetUserReviews")]
+        public async Task<IActionResult> GetUserReviews()
         {
             var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId))

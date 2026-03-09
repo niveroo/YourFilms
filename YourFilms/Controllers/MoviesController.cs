@@ -49,11 +49,6 @@ namespace YourFilms.Controllers
             }
 
             var result = await _tmdb.GetDiscoverAsync(type, sort, page, genreId, year, cancellationToken);
-            if (result.Results.Count == 0)
-            {
-                return NotFound("No results found.");
-            }
-
             return Ok(result);
         }
 

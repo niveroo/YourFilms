@@ -23,6 +23,7 @@ builder.Services.AddScoped<RegisterUser>();
 builder.Services.AddScoped<MediaSyncService>();
 builder.Services.AddScoped<BookmarkService>();
 builder.Services.AddScoped<ReviewService>();
+builder.Services.AddScoped<UserService>();
 
 // Authentication + JWT
 builder.Services.AddAuthentication(options =>
@@ -126,12 +127,12 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = services.GetRequiredService<YourFilmsDbContext>();
-        context.Database.EnsureCreated();
+        context.Database.Migrate();
     }
     catch (Exception ex)
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Error creating database.");
+        logger.LogError(ex, "Error migrating database.");
     }
 }
 

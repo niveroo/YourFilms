@@ -1,6 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc.Formatters;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.JSInterop.Infrastructure;
+﻿using Microsoft.EntityFrameworkCore;
 using YourFilms.DTOs;
 using YourFilms.Infrastructure.Db;
 using YourFilms.Models;
@@ -18,10 +16,15 @@ namespace YourFilms.Services.Interactions
             _mediaSyncService = mediaSyncService;
         }
 
-        public async Task<Review> AddReviewAsync(int userId, CreateReviewDTO dto)
+        public async Task<ReviewResponseDTO> AddReviewAsync(int userId, CreateReviewDTO dto)
         {
             // Ensure local media exists
-            int localMediaId = await _mediaSyncService.GetOrCreateLocalMediaIdAsync(dto.TmdbId, dto.MediaType);
+            int localMediaId = await _mediaSyncService.GetLocalMediaIdAsync(dto.TmdbId, dto.MediaType);
+
+            if (localMediaId == 0)
+            {
+                localMediaId = await _mediaSyncService.AddLocalMediaAsync(dto.TmdbId, dto.MediaType);
+            }
 
             var review = new Review
             {
@@ -34,7 +37,18 @@ namespace YourFilms.Services.Interactions
 
             _context.Reviews.Add(review);
             await _context.SaveChangesAsync();
-            return review;
+            
+            var user = await _context.Users.FindAsync(userId);
+
+            return new ReviewResponseDTO
+            {
+                Id = review.Id,
+                UserId = review.UserId,
+                Username = user?.Username ?? "Unknown",
+                Rating = review.Rating,
+                Content = review.Content,
+                CreatedAt = review.CreatedAt
+            };
         }
 
         public async Task<Review?> UpdateReviewAsync(int userId, UpdateReviewDTO dto)
@@ -61,9 +75,11 @@ namespace YourFilms.Services.Interactions
 
         public async Task<List<Review>> GetReviewsByMediaIdAsync(int mediaId, string mediaType)
         {
-            int localMediaId = await _mediaSyncService.GetOrCreateLocalMediaIdAsync(mediaId, mediaType);
+            int localMediaId = await _mediaSyncService.GetLocalMediaIdAsync(mediaId, mediaType);
+            if (localMediaId == 0) return new List<Review>();
             
             return await _context.Reviews
+                .Include(r => r.User)
                 .Where(r => r.MovieId == localMediaId)
                 .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync();
@@ -72,6 +88,7 @@ namespace YourFilms.Services.Interactions
         public async Task<List<Review>> GetReviewsByUserIdAsync(int userId)
         {
             return await _context.Reviews
+                .Include(r => r.Movie)
                 .Where(r => r.UserId == userId)
                 .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync();

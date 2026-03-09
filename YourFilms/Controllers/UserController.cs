@@ -2,10 +2,8 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using YourFilms.DTOs;
-using YourFilms.Models;
-using YourFilms.Services;
 using YourFilms.Services.Authorization;
-using System.IdentityModel.Tokens.Jwt;
+using YourFilms.Services.Interactions;
 
 namespace YourFilms.Controllers
 {
@@ -15,14 +13,16 @@ namespace YourFilms.Controllers
     {
         private readonly LoginUser _loginUserService;
         private readonly RegisterUser _registerUserService;
+        private readonly UserService _userService;
 
-        public UserController(LoginUser loginUserService, RegisterUser registerUserService)
+        public UserController(LoginUser loginUserService, RegisterUser registerUserService, UserService userService)
         {
             _loginUserService = loginUserService;
             _registerUserService = registerUserService;
+            _userService = userService;
         }
         // POST api/<UserController>
-        [HttpPost("login")]
+        [HttpPost("Login")]
         public async Task<ActionResult<string>> Login( [FromBody] LoginRequestDTO request)
         {
             var token = await _loginUserService.LoginAsync(request);
@@ -34,7 +34,7 @@ namespace YourFilms.Controllers
         }
 
         // POST api/<UserController>/register
-        [HttpPost("register")]
+        [HttpPost("Register")]
         public async Task<ActionResult<string>> Register([FromBody] RegisterRequestDTO request)
         {
             var result = await _registerUserService.RegisterAsync(request);
@@ -47,19 +47,17 @@ namespace YourFilms.Controllers
 
         // GET api/<UserController>/me
         [Authorize]
-        [HttpGet("me")]
-        public IActionResult GetMe()
+        [HttpGet("GetUserInfo")]
+        public async Task<IActionResult> GetUserInfo()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var username = User.FindFirstValue(ClaimTypes.Name);
-            var email = User.FindFirstValue(ClaimTypes.Email);
-
-            return Ok(new
+            
+            var user = await _userService.GetUserDetails(int.Parse(userId));
+            if (user == null)
             {
-                Id = userId,
-                Username = username,
-                Email = email
-            });
+                return NotFound("User not found");
+            }
+            return Ok(user);
         }
     }
 }

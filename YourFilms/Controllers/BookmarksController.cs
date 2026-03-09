@@ -19,7 +19,7 @@ namespace YourFilms.Controllers
         }
 
         // POST: api/bookmarks
-        [HttpPost]
+        [HttpPost("Add")]
         [Authorize]
         public async Task<IActionResult> Add([FromBody] AddBookmarkDTO dto)
         {
@@ -35,7 +35,7 @@ namespace YourFilms.Controllers
         }
 
         // DELETE: api/bookmarks
-        [HttpDelete("{bookmarkId}")]
+        [HttpDelete("Delete/{bookmarkId}")]
         [Authorize]
         public async Task<IActionResult> Remove(int bookmarkId)
         {
@@ -53,9 +53,9 @@ namespace YourFilms.Controllers
         }
 
         // GET: api/bookmarks/check
-        [HttpGet("check")]
+        [HttpGet("GetBookmark")]
         [Authorize]
-        public async Task<IActionResult> Check([FromQuery] int mediaId, [FromQuery] string type)
+        public async Task<IActionResult> Check([FromQuery] int tmdbId, [FromQuery] string mediaType)
         {
             var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId))
@@ -63,7 +63,7 @@ namespace YourFilms.Controllers
                 return Unauthorized();
             }
 
-            var bookmark = await _bookmarkService.GetBookmarkAsync(userId, mediaId, type);
+            var bookmark = await _bookmarkService.GetBookmarkAsync(userId, tmdbId, mediaType);
 
             if (bookmark != null)
             {
@@ -74,7 +74,7 @@ namespace YourFilms.Controllers
         }
 
         // GET: api/bookmarks/user/me
-        [HttpGet("user/me")]
+        [HttpGet("User/GetMyBookmarks")]
         [Authorize]
         public async Task<IActionResult> GetMyBookmarks()
         {
@@ -89,15 +89,15 @@ namespace YourFilms.Controllers
         }
 
         // GET: api/bookmarks/user/{userId}
-        [HttpGet("user/{userId}")]
+        [HttpGet("User/{userId}")]
         public async Task<IActionResult> GetUserBookmarks(int userId)
         {
             var bookmarks = await _bookmarkService.GetUserBookmarksAsync(userId);
             return Ok(bookmarks);
         }
 
-        // PUT: api/bookmarks/{bookmarkId}
-        [HttpPut("{bookmarkId}")]
+        // Update: api/bookmarks/{bookmarkId}
+        [HttpPost("Update")]
         [Authorize]
         public async Task<IActionResult> Update(UpdateBookmarkDTO dto)
         {
