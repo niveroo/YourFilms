@@ -35,9 +35,9 @@ namespace YourFilms.Controllers
         }
 
         // DELETE: api/bookmarks
-        [HttpDelete("Delete/{bookmarkId}")]
+        [HttpDelete("Delete/{id}")]
         [Authorize]
-        public async Task<IActionResult> Remove(int bookmarkId)
+        public async Task<IActionResult> Remove(int id)
         {
             var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out int userId))
@@ -45,7 +45,7 @@ namespace YourFilms.Controllers
                 return Unauthorized();
             }
 
-            var deleted = await _bookmarkService.RemoveBookmarkAsync(userId, bookmarkId);
+            var deleted = await _bookmarkService.RemoveBookmarkAsync(userId, id);
 
             if (deleted == false) return NotFound("Bookmark not found");
 

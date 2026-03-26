@@ -3,6 +3,7 @@ using YourFilms.Models;
 using YourFilms.DTOs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
+using System.ComponentModel.DataAnnotations;
 
 namespace YourFilms.Services.Authorization
 {
@@ -17,6 +18,12 @@ namespace YourFilms.Services.Authorization
 
         public async Task<(bool Success, string ErrorMessage)> RegisterAsync(RegisterRequestDTO request)
         {
+            var emailValidator = new EmailAddressAttribute();
+            if (string.IsNullOrWhiteSpace(request.Email) || !emailValidator.IsValid(request.Email))
+            {
+                return (false, "Wrong format of email address.");
+            }
+
             if (await _context.Users.AnyAsync(u => u.Email == request.Email))
                 return (false, "Email is already taken.");
 

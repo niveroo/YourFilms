@@ -1,5 +1,6 @@
-﻿using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Linq;
 using System.Text.Json;
@@ -16,12 +17,14 @@ public class TmdbApiService
 {
     private readonly TmdbClient _client;
     private readonly IDistributedCache _cache;
+    private readonly IConfiguration _configuration;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    public TmdbApiService(TmdbClient client, IDistributedCache cache)
+    public TmdbApiService(TmdbClient client, IDistributedCache cache, IConfiguration configuration)
     {
         _client = client;
         _cache = cache;
+        _configuration = configuration;
     }
 
     // Search movies and TV shows by query
@@ -30,6 +33,21 @@ public class TmdbApiService
     int page,
     CancellationToken cancellationToken = default)
     {
+        string cacheKey = $"search:{query}:page:{page}";
+
+        var cached = await _cache.GetStringAsync(cacheKey, cancellationToken);
+        if (cached != null)
+        {
+            return JsonSerializer.Deserialize<PagedResult<SearchDTO>>(cached, JsonOptions)
+                   ?? new PagedResult<SearchDTO>
+                   {
+                       Page = 0,
+                       TotalPages = 0,
+                       TotalResults = 0,
+                       Results = new List<SearchDTO>()
+                   };
+        }
+
         var response = await _client.SearchAllAsync(query, page, cancellationToken);
 
         if (response?.Results == null)
@@ -44,21 +62,35 @@ public class TmdbApiService
         }
 
         // Fetch both genre sets
-        var movieGenres = await GetMoviesGenresAsync("movie", cancellationToken);
-        var tvGenres = await GetMoviesGenresAsync("tv", cancellationToken);
+        var movieGenres = await GetGenresAsync("movie", cancellationToken);
+        var tvGenres = await GetGenresAsync("tv", cancellationToken);
 
         var results = response.Results
             .Where(r => r.MediaType == "movie" || r.MediaType == "tv")
             .Select(r => DTOConverter.ToSearchDto(r, movieGenres, tvGenres))
             .ToList();
 
-        return new PagedResult<SearchDTO>
+        var pagedResult = new PagedResult<SearchDTO>
         {
             Page = response.Page,
             TotalPages = response.TotalPages,
             TotalResults = response.TotalResults,
             Results = results
         };
+
+        double cacheHours = _configuration.GetValue<double?>("CacheSettings:SearchExpirationHours") ?? 1;
+
+        await _cache.SetStringAsync(
+            cacheKey,
+            JsonSerializer.Serialize(pagedResult, JsonOptions),
+            new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(cacheHours)
+            },
+            cancellationToken
+        );
+
+        return pagedResult;
     }
 
     // Discover movies and TV shows
@@ -70,6 +102,21 @@ public class TmdbApiService
         int? year = null,
         CancellationToken cancellationToken = default)
     {
+        string cacheKey = $"discover:{type}:sort:{sortOption}:page:{page}:genre:{genreId}:year:{year}";
+
+        var cached = await _cache.GetStringAsync(cacheKey, cancellationToken);
+        if (cached != null)
+        {
+            return JsonSerializer.Deserialize<PagedResult<SearchDTO>>(cached, JsonOptions)
+                   ?? new PagedResult<SearchDTO>
+                   {
+                       Page = 0,
+                       TotalPages = 0,
+                       TotalResults = 0,
+                       Results = new List<SearchDTO>()
+                   };
+        }
+
         var titles = await _client.GetDiscoverAsync(type, sortOption, page, genreId, year, cancellationToken);
 
         if (titles?.Results == null)
@@ -83,20 +130,34 @@ public class TmdbApiService
             };
         }
 
-        var movieGenres = await GetMoviesGenresAsync("movie", cancellationToken);
-        var tvGenres = await GetMoviesGenresAsync("tv", cancellationToken);
+        var movieGenres = await GetGenresAsync("movie", cancellationToken);
+        var tvGenres = await GetGenresAsync("tv", cancellationToken);
 
         var results = titles.Results
             .Select(r => DTOConverter.ToSearchDto(r, movieGenres, tvGenres))
             .ToList();
 
-        return new PagedResult<SearchDTO>
+        var pagedResult = new PagedResult<SearchDTO>
         {
             Page = titles.Page,
             TotalPages = titles.TotalPages,
             TotalResults = titles.TotalResults,
             Results = results
         };
+
+        double cacheHours = _configuration.GetValue<double?>("CacheSettings:DiscoverExpirationHours") ?? 1;
+
+        await _cache.SetStringAsync(
+            cacheKey,
+            JsonSerializer.Serialize(pagedResult, JsonOptions),
+            new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(cacheHours)
+            },
+            cancellationToken
+        );
+
+        return pagedResult;
     }
 
     // Returns TMDb movie details DTO model
@@ -116,7 +177,7 @@ public class TmdbApiService
     }
 
     // Get movie or tv genres, with caching
-    public async Task<List<GenreDTO>> GetMoviesGenresAsync(string type, CancellationToken cancellationToken = default)
+    public async Task<List<GenreDTO>> GetGenresAsync(string type, CancellationToken cancellationToken = default)
     {
         string cacheKey = $"genres:{type}";
 
@@ -144,13 +205,16 @@ public class TmdbApiService
             })
             .ToList();
 
+        // Get expiration from config, fallback to 12 if not set
+        double cacheHours = _configuration.GetValue<double?>("CacheSettings:GenresExpirationHours") ?? 12;
+
         // Save to Redis
         await _cache.SetStringAsync(
             cacheKey,
             JsonSerializer.Serialize(mappedGenres, JsonOptions),
             new DistributedCacheEntryOptions
             {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(12)
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(cacheHours)
             },
             cancellationToken
         );
@@ -188,8 +252,8 @@ public class TmdbApiService
             };
         }
 
-        var movieGenres = await GetMoviesGenresAsync("movie", cancellationToken);
-        var tvGenres = await GetMoviesGenresAsync("tv", cancellationToken);
+        var movieGenres = await GetGenresAsync("movie", cancellationToken);
+        var tvGenres = await GetGenresAsync("tv", cancellationToken);
 
         var results = titles.Results
             .Select(r => DTOConverter.ToSearchDto(r, movieGenres, tvGenres))
@@ -203,12 +267,15 @@ public class TmdbApiService
             Results = results
         };
 
+        // Get expiration from config, fallback to 2 if not set
+        double cacheHours = _configuration.GetValue<double?>("CacheSettings:TrendingExpirationHours") ?? 2;
+
         await _cache.SetStringAsync(
         cacheKey,
         JsonSerializer.Serialize(pagedResult, JsonOptions),
         new DistributedCacheEntryOptions
         {
-            AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(2)
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(cacheHours)
         },
         cancellationToken
     );

@@ -21,12 +21,12 @@ public class GenresController : ControllerBase
     [HttpGet("movie")]
     public async Task<ActionResult<List<GenreDTO>>> GetMovieGenres(CancellationToken cancellationToken)
     {
-        return await _tmdb.GetMoviesGenresAsync("movie", cancellationToken);
+        return await _tmdb.GetGenresAsync("movie", cancellationToken);
     }
 
     [HttpGet("tv")]
     public async Task<ActionResult<List<GenreDTO>>> GetTvGenres(CancellationToken cancellationToken)
     {
-        return await _tmdb.GetMoviesGenresAsync("tv", cancellationToken);
+        return await _tmdb.GetGenresAsync("tv", cancellationToken);
     }
 }

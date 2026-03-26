@@ -19,6 +19,14 @@ public class YourFilmsDbContext : DbContext
             .IsUnique();
 
         modelBuilder.Entity<Review>()
+            .HasIndex(r => new { r.UserId, r.MovieId })
+            .IsUnique();
+
+        modelBuilder.Entity<Bookmark>()
+            .HasIndex(b => new { b.UserId, b.MovieId })
+            .IsUnique();
+
+        modelBuilder.Entity<Review>()
             .HasOne(r => r.User)
             .WithMany()
             .HasForeignKey(r => r.UserId);
