@@ -3,7 +3,7 @@ name: yourfilms
 services:
   yourfilms.api:
     build:
-      context: ./YourFilms
+      context: .
       dockerfile: YourFilms/Dockerfile
     container_name: yourfilms.api
     ports:
@@ -17,7 +17,7 @@ services:
 
   yourfilms.web:
     build:
-      context: ./YourFilms-web
+      context: ../YourFilms-web
       dockerfile: Dockerfile
     container_name: yourfilms.web
     ports:
